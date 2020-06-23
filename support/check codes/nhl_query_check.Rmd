@@ -1,0 +1,149 @@
+---
+title: 'NHL Database Query Check'
+author: 'Sai Krishna Lanka'
+date: '6/22/2020'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r load packages and set options}
+library(lubridate)
+library(dplyr)
+```
+
+```{r load data}
+Players <- read.csv('../../nhl-game-data/player_info.csv')
+Plays <- read.csv('../../nhl-game-data/game_plays.csv', stringsAsFactors = FALSE)
+Plays$dateTime <- ymd_hms(Plays$dateTime)
+Plays$Year <- as.numeric(substring(Plays$game_id,1,4))
+
+PlaysPlayers <- read.csv('../../nhl-game-data/game_plays_players.csv', stringsAsFactors = FALSE)
+
+Games <- read.csv('../../nhl-game-data/game.csv', stringsAsFactors = FALSE)
+
+Teams <- read.csv('../../nhl-game-data/team_info.csv', stringsAsFactors = FALSE)
+```
+
+```{r create views}
+Hits <- Plays %>% 
+  filter(event == 'Hit') %>% 
+  left_join(PlaysPlayers %>% 
+              filter(playerType == 'Hitter') %>% select(play_id, player_id), by = 'play_id')
+
+Hits <- Hits %>% 
+  left_join(Players %>% 
+              select(player_id, firstName, lastName, primaryPosition, birthDate), by = 'player_id')
+
+Beats <- Plays %>% 
+  filter(event == 'Hit') %>% 
+  left_join(PlaysPlayers %>% 
+              filter(playerType == 'Hittee') %>% 
+              select(play_id, player_id), by = 'play_id')
+
+Beats <- Beats %>% 
+  left_join(Players %>% 
+              select(player_id, firstName, lastName, primaryPosition, birthDate), by = 'player_id')
+
+Goals <- Plays %>% 
+  filter(event == 'Goal') %>% 
+  left_join(PlaysPlayers %>% 
+              filter(playerType == 'Scorer') %>% 
+              select(play_id, player_id), by = 'play_id')
+
+Goals <- Goals %>% 
+  left_join(Players %>% 
+              select(player_id, firstName, lastName, primaryPosition, birthDate), by = 'player_id')
+```
+
+```{r AT1: how many hits are recorded each year?}
+Hits %>% 
+  group_by(Year) %>%
+  summarise(ct = n())
+```
+
+```{r AT2: who was the hits leader for each year?}
+Hits %>% 
+  group_by(Year, player_id) %>%
+  summarise(ct = n()) %>% 
+  group_by(Year) %>%
+  arrange(desc(ct)) %>%
+  mutate(YearlyRank = row_number()) %>% 
+  filter(YearlyRank == 1) %>% 
+  left_join(Players %>% 
+              select(player_id, firstName, lastName, primaryPosition, birthDate), by = 'player_id') %>%
+  select(Year, player_id, firstName, lastName, primaryPosition, ct) %>% 
+  arrange(Year)
+```
+
+```{r AT3: what is the distribution of yearly hit totals per player?}
+Hits %>% 
+  group_by(Year, player_id) %>%
+  summarise(ct = n()) %>% 
+  left_join(Players %>% 
+              select(player_id, firstName, lastName, primaryPosition), by = 'player_id')
+```
+
+```{r AT4: what is the distribution of yearly hit totals per team?}
+Hits %>% 
+  group_by(Year, team_id_for) %>%
+  summarise(ct = n()) %>% 
+  group_by(Year) %>% 
+  arrange(Year, desc(ct)) %>%
+  mutate(season_rank = row_number()) %>% 
+  left_join(Teams %>% 
+              select(team_id, teamName), by = c('team_id_for' = 'team_id'))
+```
+
+```{r AT5: who is taking the most hits?}
+Beats %>% 
+  group_by(player_id) %>%
+  summarise(ct = n()) %>%
+  arrange(desc(ct)) %>%
+  mutate(rank = row_number()) %>% 
+  filter(rank <= 10) %>% 
+  left_join(Players %>% 
+              select(player_id, firstName, lastName, primaryPosition, birthDate), by = 'player_id') %>%
+  select(rank, firstName, lastName, primaryPosition, ct)
+```
+
+```{r AT6: how many goals are recorded each season?}
+Goals %>% 
+  group_by(Year) %>%
+  summarise(n())
+```
+
+```{r AT7: who scored the most goals each year?}
+Goals %>% 
+  group_by(Year, player_id) %>%
+  summarise(ct = n()) %>% 
+  group_by(Year) %>%
+  arrange(desc(ct)) %>%
+  mutate(YearlyRank = row_number()) %>% 
+  filter(YearlyRank == 1) %>% 
+  left_join(Players %>% 
+              select(player_id, firstName, lastName, primaryPosition, birthDate), by = 'player_id') %>%
+  select(Year, player_id, firstName, lastName, primaryPosition, ct) %>% 
+  arrange(Year)
+```
+
+```{r AT8: what is the distribution of yearly goal totals per player?}
+Goals %>% 
+  group_by(Year, player_id) %>%
+  summarise(ct = n()) %>% 
+  left_join(Players %>% 
+              select(player_id, firstName, lastName, primaryPosition), by = 'player_id')
+```
+
+```{r AT9: what is the distribution of yearly goal totals per team?}
+Goals %>%
+  group_by(Year, team_id_for) %>%
+  summarise(ct = n()) %>%
+  group_by(Year) %>% 
+  arrange(Year, desc(ct)) %>%
+  mutate(season_rank = row_number()) %>% 
+  left_join(Teams %>% 
+              select(team_id, shortName, teamName), by = c('team_id_for' = 'team_id'))
+```
