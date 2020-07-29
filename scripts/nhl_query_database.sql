@@ -52,7 +52,8 @@ FROM (
 	LEFT JOIN team_info AS ti
 		ON h.team_id_for = ti.team_id
 	GROUP BY season, 
-		h.team_id_for) AS team_hits;
+		h.team_id_for
+) AS team_hits;
 
 -- AT5: Who is taking the most hits?
 SELECT b.player_id,
@@ -60,7 +61,7 @@ SELECT b.player_id,
     pi.last_name,
     pi.primary_position,
 	COUNT(*) AS beat_count
-FROM beats b
+FROM beats AS b
 LEFT JOIN player_info AS pi
 	USING(player_id)
 GROUP BY player_id
@@ -119,4 +120,5 @@ FROM (
 	LEFT JOIN team_info AS ti
 		ON g.team_id_for = ti.team_id
 	GROUP BY season, 
-		g.team_id_for) AS team_goals;
+		g.team_id_for
+) AS team_goals;
